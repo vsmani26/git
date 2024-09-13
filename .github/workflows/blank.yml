@@ -1,0 +1,199 @@
+name: 'Checkov Validation And Terraform Deploy To GCP'
+ 
+on:
+
+  push:
+
+    branches: ["master", "main"]
+
+  pull_request:
+
+    branches: ["master", "main"]  
+ 
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout code
+
+        uses: actions/checkout@v3
+ 
+      - name: Set up Terraform
+
+        uses: hashicorp/setup-terraform@v2
+
+        with:
+
+          terraform_version: 1.5.0  # Specify the Terraform version you are using
+ 
+      - name: Terraform Plan
+
+        run: |
+
+          terraform init
+
+          terraform plan --out=tfplan.binary
+
+          terraform show -json tfplan.binary > tfplan.json
+ 
+      - name: Display Terraform Plan JSON
+
+        run: cat tfplan.json
+ 
+      - name: Set up Checkov
+
+        run: pip install checkov
+ 
+      - name: Checkov Scan
+
+        run: checkov -f tfplan.json
+ 
+      
+ 
+      # - name: Terraform Show and Validate JSON
+
+      #   run: |
+
+      #       terraform show -json tfplan.binary > tfplan.json
+
+
+      # - name: Checkov
+
+      #   run: checkov -f tfplan.json
+ 
+      
+ 
+ 
+      # - name: Check Terraform with Checkov
+
+      #   run: checkov -f main.tf --quiet -o json --output-file-path checkov_result/ 
+
+      - name: Check Terraform with Checkov Success
+
+        run: echo "Checkov completed successfully."
+ 
+      - name: Send Failure Notification
+
+        if: failure()
+
+        run: echo "The 'build' job failed."
+
+ 
+  terraform-job2:
+
+    runs-on: ubuntu-latest
+
+    needs: build
+
+    steps:
+
+      - name: Checkout code
+
+        uses: actions/checkout@v2
+ 
+      - name: Set up Terraform
+
+        uses: hashicorp/setup-terraform@v1
+
+        with:
+
+          terraform_version: 1.6.6   
+ 
+      - name: Terraform Init
+
+        run: terraform init
+
+      - name: Terraform Format
+
+        run: terraform fmt
+ 
+         
+
+      - name: Terraform Validation
+
+        run: terraform validate
+ 
+        
+
+      - name: Terraform Plan
+
+        run: terraform plan
+ 
+      - name: Terraform Apply 
+
+        run: terraform apply --auto-approve 
+
+        #run: terraform apply --auto-approve -var="project-id=${{ secrets.PROJECT_ID }}" -var="credentials=${{ secrets.CREDENTIAL }}" | awk '/^Outputs:/{outputFound=1; output=""; count=0} outputFound{output=output $0 ORS; count++} count==4{print output > "output.txt"; exit}'
+
+      # - name: Terraform Output
+
+      #   run: |
+
+      #     cat terraform.tfstate | jq -r '.outputs | to_entries[] | "\(.key): \(.value.value)"' > output.txt
+ 
+      # - name: Echo
+
+      #   run: |
+
+      #     echo "${{ secrets.PROJECT_ID }}"
+
+      #     echo "${{ secrets.CREDENTIAL}}"
+ 
+      # - name: Check for output.txt
+
+      #   id: check-output-file
+
+      #   run: |
+
+      #    if [ -f "output.txt" ]; then
+
+      #     echo "Output.txt exists."
+
+      #     echo "::set-output name=file-exists::true"
+
+      #    else
+
+      #     echo "Output.txt does not exist."
+
+      #     echo "::set-output name=file-exists::false"
+
+      #     exit 1  # Stop the job if the file does not exist
+
+      #    fi
+ 
+      # - name: Conditional Steps
+
+      #   if: steps.check-output-file.outputs.file-exists == 'true'
+
+      #   run: |
+
+      #         echo "Executing steps since output.txt exists."
+
+      #         echo "Creating GCP Output File"
+
+      #         git push origin --delete output || git branch --all
+
+      #         git checkout -b output || git branch
+
+      #         ls
+
+      #         git config --global user.email "nsmgbros001@gmail.com"
+
+      #         git config --global user.name "Santhosh-Nagarajan"
+
+      #         rm -r *.tf terraform.tfvars .terraform .github/ *.json terraform.tfstate .terraform.lock.hcl
+
+      #         git add .
+
+      #         git commit -m "create output file"
+
+      #         git remote set-url origin https://2cdeathy88a9N8QTumOgC0WVUiSy8A4H5hMz@github.com/arun-02136/vpc.git
+
+      #         git remote -v
+
+      #         git push -u origin output
+ 
